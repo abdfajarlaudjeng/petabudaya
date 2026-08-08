@@ -23,6 +23,15 @@
     <!-- Peta -->
     <div id="map" class="absolute inset-0 z-0"></div>
 
+    <!-- Indicator Loading Data -->
+    <div id="loadingIndicator" class="absolute top-20 left-1/2 transform -translate-x-1/2 z-[500] bg-gray-900/90 text-white text-xs px-4 py-2 rounded-full shadow-2xl flex items-center gap-2 border border-gray-700 backdrop-blur-md">
+        <svg class="animate-spin h-4 w-4 text-amber-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <span>Memuat data kebudayaan Kabupaten Donggala</span>
+    </div>
+
     <!-- Header Filter -->
     <div class="absolute top-4 left-4 right-4 md:right-auto md:w-[350px] z-[400] bg-white/80 backdrop-blur-md shadow-2xl rounded-2xl p-5 border border-white/40 transition-all">
         <h1 class="text-2xl font-black text-gray-900 tracking-tight leading-tight mb-1">Sebaran Peta Budaya</h1>
@@ -44,7 +53,7 @@
         </div>
     </div>
 
-    <!-- Tombol Kontrol Peta Melayang (Lokasi Saya & Lihat Semua Titik) -->
+    <!-- Tombol Kontrol Peta Melayang -->
     <div class="absolute bottom-24 right-4 md:bottom-8 md:right-8 z-[400] flex flex-col gap-3">
         <!-- Tombol Tampilkan Semua Titik -->
         <button onclick="tampilkanSemuaTitik()" class="bg-white hover:bg-gray-100 text-gray-800 p-3.5 rounded-full shadow-xl border border-gray-200 transition-transform transform hover:scale-105 flex items-center justify-center group" title="Lihat Semua Titik Koordinat">
@@ -62,7 +71,7 @@
         </button>
     </div>
 
-    <!-- Panel Informasi (Meluncur & Terintegrasi DAPOBUD Style) -->
+    <!-- Panel Informasi (Meluncur & Terintegrasi DAPOBUD) -->
     <div id="infoPanel" class="absolute bottom-0 left-0 right-0 md:top-4 md:bottom-4 md:left-[390px] md:right-auto md:w-[460px] z-[500] bg-white md:rounded-2xl rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.2)] md:shadow-2xl flex flex-col transform translate-y-full md:translate-y-0 md:-translate-x-[200%] opacity-0 transition-all duration-500 ease-out border border-gray-100">
         <button onclick="tutupPanel()" class="absolute top-4 right-4 z-10 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 transition-colors">
             <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -91,6 +100,7 @@
     <script src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script>
 
     <script>
+        // Inisialisasi Peta
         var map = L.map('map', { center: [-0.7321, 119.7432], zoom: 11, zoomControl: false });
         L.control.zoom({ position: 'bottomright' }).addTo(map);
 
@@ -108,9 +118,12 @@
         var markerPengguna = null;
         var posisiPengguna = null;
 
+        // URL Google Apps Script Endpoint Spreadsheet
+        var gasUrl = 'https://script.google.com/macros/s/AKfycbzuNNjr7xPdgPBWaLHvaGhVgjuKuswSUVOmUkn6Tstvm2J45Zc1BmCScuCJLp7XZ2-P/exec';
+
         function formatUrlGambar(url) {
             if (!url) return '';
-            url = url.trim();
+            url = String(url).trim();
             var matchDrive = url.match(/(?:drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=)|lh3\.googleusercontent\.com\/d\/)([a-zA-Z0-9_-]+)/);
             if (matchDrive && matchDrive[1]) {
                 return 'https://lh3.googleusercontent.com/d/' + matchDrive[1];
@@ -125,12 +138,14 @@
 
         function getIconKustom(kategori) {
             let emoji = "📍"; let warnaBg = "bg-blue-600";
-            if (kategori === "Situs Sejarah" || kategori === "Situs") { emoji = "🗿"; warnaBg = "bg-amber-600"; } 
-            else if (kategori === "Struktur") { emoji = "🧱"; warnaBg = "bg-orange-600"; }
-            else if (kategori === "Bangunan") { emoji = "🏛️"; warnaBg = "bg-purple-600"; }
-            else if (kategori === "Benda") { emoji = "🏺"; warnaBg = "bg-emerald-600"; }
-            else if (kategori === "Kesenian") { emoji = "🎭"; warnaBg = "bg-pink-600"; } 
-            else if (kategori === "Tradisi Lisan") { emoji = "🗣️"; warnaBg = "bg-teal-600"; }
+            var kat = String(kategori || "").toLowerCase();
+
+            if (kat.includes("situs")) { emoji = "🗿"; warnaBg = "bg-amber-600"; } 
+            else if (kat.includes("struktur")) { emoji = "🧱"; warnaBg = "bg-orange-600"; }
+            else if (kat.includes("bangunan")) { emoji = "🏛️"; warnaBg = "bg-purple-600"; }
+            else if (kat.includes("benda")) { emoji = "🏺"; warnaBg = "bg-emerald-600"; }
+            else if (kat.includes("kesenian")) { emoji = "🎭"; warnaBg = "bg-pink-600"; } 
+            else if (kat.includes("tradisi") || kat.includes("lisan")) { emoji = "🗣️"; warnaBg = "bg-teal-600"; }
 
             return L.divIcon({
                 className: 'leaflet-div-icon',
@@ -174,16 +189,18 @@
                 var lngVal = item.lng || item.Lng || item.longitude || item.Longitude;
                 if (latVal && lngVal) {
                     var lat = parseFloat(latVal); var lng = parseFloat(lngVal);
-                    var marker = L.marker([lat, lng], { icon: getIconKustom(item.kategori || item.Kategori) });
-                    marker.on('click', function() { map.setView([lat, lng], 15, { animate: true, duration: 0.5 }); bukaPanelInfo(item); });
-                    markerLayer.addLayer(marker);
+                    if (!isNaN(lat) && !isNaN(lng)) {
+                        var marker = L.marker([lat, lng], { icon: getIconKustom(item.kategori || item.Kategori) });
+                        marker.on('click', function() { map.setView([lat, lng], 15, { animate: true, duration: 0.5 }); bukaPanelInfo(item); });
+                        markerLayer.addLayer(marker);
+                    }
                 }
             });
 
             tampilkanSemuaTitik();
         }
 
-        // Helper untuk membuat Komponen Akordion ala DAPOBUD
+        // Helper Komponen Akordion
         function buatAccordionBox(judul, htmlKonten, isOpen = true) {
             return `
                 <details class="bg-white border border-gray-200 rounded-xl mb-3 shadow-sm overflow-hidden" ${isOpen ? 'open' : ''}>
@@ -198,11 +215,11 @@
             `;
         }
 
-        // Helper tabel Key-Value untuk DAPOBUD
+        // Helper Tabel Data Key-Value DAPOBUD
         function buatTabelData(objData) {
             let html = '<div class="space-y-2">';
             for (let [key, val] of Object.entries(objData)) {
-                if (val !== undefined && val !== null && val !== '') {
+                if (val !== undefined && val !== null && val !== '' && val !== '-') {
                     html += `
                         <div class="flex justify-between border-b border-gray-100 pb-1.5 gap-2">
                             <span class="text-gray-500 font-medium">${key}</span>
@@ -219,7 +236,7 @@
             var lngCurrent = parseFloat(item.lng || item.Lng || item.longitude || item.Longitude);
             var titikCurrent = L.latLng(latCurrent, lngCurrent);
 
-            // --- HITUNG JARAK DARI LOKASI PENGGUNA ---
+            // Jarak Dari Pengguna
             var JarakPenggunaHTML = "";
             if (posisiPengguna) {
                 var jarakM = titikCurrent.distanceTo(posisiPengguna);
@@ -234,7 +251,7 @@
                 `;
             }
 
-            // --- HITUNG JARAK KE TITIK TERDEKAT LAINNYA ---
+            // Hitung Jarak Ke Titik Terdekat
             var daftarJarak = [];
             semuaDataBudaya.forEach(other => {
                 var oLat = parseFloat(other.lat || other.Lat || other.latitude || other.Latitude);
@@ -242,7 +259,7 @@
                 var oNama = other.nama || other.Nama || other.nama_objek || "Titik Lain";
                 var cNama = item.nama || item.Nama || item.nama_objek || "";
 
-                if (oLat && oLng && (oLat !== latCurrent || oLng !== lngCurrent) && oNama !== cNama) {
+                if (!isNaN(oLat) && !isNaN(oLng) && (oLat !== latCurrent || oLng !== lngCurrent) && oNama !== cNama) {
                     var dist = titikCurrent.distanceTo(L.latLng(oLat, oLng));
                     daftarJarak.push({
                         nama: oNama,
@@ -277,13 +294,13 @@
                 JarakTitikLainHTML += `</div></div>`;
             }
 
-            // --- GALERI FOTO / CAROUSEL ---
+            // Galeri Foto / Carousel
             var HeaderGambarHTML = `<div class="w-full h-24 bg-gradient-to-r from-amber-500 to-indigo-600"></div>`;
             var SisaGaleriHTML = "";
             var rawGambar = item.gambar || item.Gambar || item.foto || item.Foto || item.link_gambar || "";
             
-            if (rawGambar && rawGambar.trim() !== "") {
-                var arrayGambar = rawGambar.split(',')
+            if (rawGambar && String(rawGambar).trim() !== "") {
+                var arrayGambar = String(rawGambar).split(',')
                                     .map(url => formatUrlGambar(url))
                                     .filter(url => url !== "");
 
@@ -305,7 +322,7 @@
                 }
             }
 
-            // --- PERBANDINGAN TRANSFORMASI WAKTU ---
+            // Perbandingan Transformasi Waktu
             var PerbandinganHTML = "";
             var gLama = formatUrlGambar(item.gambarLama || item.GambarLama || item.gambar_lama);
             var gBaru = formatUrlGambar(item.gambarBaru || item.GambarBaru || item.gambar_baru);
@@ -333,7 +350,7 @@
                 `;
             }
 
-            // --- VIRTUAL 360 BUTTON ---
+            // Tombol 360 Degree
             var tombol360 = "";
             var g360 = formatUrlGambar(item.gambar360 || item.Gambar360 || item.gambar_360);
             if (g360) {
@@ -345,17 +362,15 @@
                     </div>`;
             }
 
-            // --- AKORDION-AKORDION INFORMASI DAPOBUD ---
+            // Akordion DAPOBUD
             var idObjek = item.id || item.ID || item.nomor || item.Nomor || item.number || "-";
             var namaObjek = item.nama || item.Nama || item.nama_objek || item.name || "Tanpa Nama";
             var kategoriObjek = item.kategori || item.Kategori || item.category || "Umum";
             var deskripsiObjek = item.deskripsi || item.Deskripsi || item.historyDescription || "Tidak ada deskripsi tersedia.";
 
-            // Accordion: Deskripsi & Sejarah
             var accDeskripsi = buatAccordionBox("Deskripsi & Sejarah", `<p class="leading-relaxed">${deskripsiObjek}</p>`, true);
 
-            // Accordion: Informasi & Lokasi Penemuan
-            var dataInformasiLokasi = {
+            var accInformasi = buatAccordionBox("Informasi & Lokasi Penemuan", buatTabelData({
                 "Nomor Registrasi / DAPOBUD": idObjek,
                 "Kategori Entitas": kategoriObjek,
                 "Provinsi": item.provinsi || item.Provinsi || "Sulawesi Tengah",
@@ -363,42 +378,34 @@
                 "Kecamatan": item.kecamatan || item.Kecamatan || "Banawa",
                 "Koordinat Latitude": latCurrent,
                 "Koordinat Longitude": lngCurrent
-            };
-            var accInformasi = buatAccordionBox("Informasi & Lokasi Penemuan", buatTabelData(dataInformasiLokasi), false);
+            }), false);
 
-            // Accordion: Data Fisik & Dimensi
-            var dataFisikDimensi = {
+            var accFisik = buatAccordionBox("Data Fisik & Dimensi", buatTabelData({
                 "Bahan Utama": item.bahan || item.Bahan || "-",
                 "Bentuk Objek": item.bentuk || item.Bentuk || "-",
                 "Ukuran / Dimensi": item.dimensi || item.Dimensi || item.ukuran || "-",
                 "Panjang / Tinggi": item.panjang || item.tinggi || "-",
                 "Lebar / Luas": item.lebar || item.luas || "-"
-            };
-            var accFisik = buatAccordionBox("Data Fisik & Dimensi", buatTabelData(dataFisikDimensi), false);
+            }), false);
 
-            // Accordion: Kondisi Terkini & Kepemilikan
-            var dataKondisiKepemilikan = {
+            var accKondisi = buatAccordionBox("Kondisi Terkini & Pengelolaan", buatTabelData({
                 "Kondisi Saat Ini": item.kondisi || item.Kondisi || "Terawat",
                 "Status Kepemilikan": item.kepemilikan || item.Kepemilikan || "-",
                 "Pengelola": item.pengelola || item.Pengelola || "Dinas Kebudayaan / Pemerintah Daerah",
                 "Upaya Pelestarian": item.pelestarian || "-"
-            };
-            var accKondisi = buatAccordionBox("Kondisi Terkini & Pengelolaan", buatTabelData(dataKondisiKepemilikan), false);
+            }), false);
 
-            // Accordion: Batas Zonasi & Penetapan
-            var dataZonasi = {
+            var accZonasi = buatAccordionBox("Batas Zonasi & Penetapan", buatTabelData({
                 "Status Penetapan": item.status_penetapan || "Terdaftar",
                 "Tahun Penetapan": item.tahun_penetapan || item.tahun || "-",
                 "SK Penetapan": item.sk_penetapan || "-",
                 "Batas Zonasi": item.zonasi || item.Zonasi || "-"
-            };
-            var accZonasi = buatAccordionBox("Batas Zonasi & Penetapan", buatTabelData(dataZonasi), false);
+            }), false);
 
-            // Accordion: Tabel Video Dokumentasi
             var rawVideo = item.video || item.Video || item.link_video || "";
             var tableVideoHTML = `<p class="text-gray-400 italic">Tidak ada dokumentasi video terlampir.</p>`;
-            if (rawVideo && rawVideo.trim() !== "") {
-                var embedUrl = getYouTubeEmbedUrl(rawVideo.trim());
+            if (rawVideo && String(rawVideo).trim() !== "") {
+                var embedUrl = getYouTubeEmbedUrl(String(rawVideo).trim());
                 tableVideoHTML = `
                     <div class="overflow-x-auto">
                         <table class="w-full text-left text-xs border-collapse border border-gray-200">
@@ -429,7 +436,7 @@
             }
             var accVideo = buatAccordionBox("Video Dokumentasi", tableVideoHTML, false);
 
-            // --- SEKSI DATA RELASI (DAPOBUD STYLE) ---
+            // Data Relasi Kebudayaan
             var dataRelasiHTML = `
                 <div class="mt-6 pt-4 border-t border-gray-200">
                     <h3 class="text-sm font-black text-gray-900 mb-3 flex items-center gap-2">
@@ -505,7 +512,6 @@
             panelElement.classList.add('translate-y-0', 'md:translate-x-0', 'opacity-100');
         }
 
-        // Filter tabel relasi secara interaktif
         function filterTabelRelasi() {
             var input = document.getElementById("inputCariRelasi");
             var filter = input.value.toLowerCase();
@@ -533,12 +539,30 @@
             tampilkanSemuaTitik();
         }
 
-        var gasUrl = 'https://script.google.com/macros/s/AKfycbyWjdyYxNR6WXvhzBH70Np3t2i0UK79z8pQPU7T6iJ9ohmsPyrg5RltUAvCi1IcbzHa5w/exec';
-
+        // Fetch Data dari Google Apps Script API
         fetch(gasUrl)
             .then(response => response.json())
-            .then(data => { semuaDataBudaya = data; renderMarkers(semuaDataBudaya); })
-            .catch(error => console.error('Error API:', error));
+            .then(data => {
+                var loadingEl = document.getElementById('loadingIndicator');
+                if (loadingEl) loadingEl.style.display = 'none';
+
+                if (Array.isArray(data)) {
+                    semuaDataBudaya = data;
+                } else if (data && data.data && Array.isArray(data.data)) {
+                    semuaDataBudaya = data.data;
+                } else {
+                    semuaDataBudaya = [];
+                }
+
+                renderMarkers(semuaDataBudaya);
+            })
+            .catch(error => {
+                console.error('Error memuat data dari Spreadsheet API:', error);
+                var loadingEl = document.getElementById('loadingIndicator');
+                if (loadingEl) {
+                    loadingEl.innerHTML = `<span class="text-red-400">⚠️ Gagal memuat data dari Spreadsheet.</span>`;
+                }
+            });
 
         document.getElementById('kategoriFilter').addEventListener('change', function(event) {
             tutupPanel(); 
@@ -547,7 +571,7 @@
                 renderMarkers(semuaDataBudaya); 
             } else {
                 renderMarkers(semuaDataBudaya.filter(item => {
-                    var kat = (item.kategori || item.Kategori || "").toLowerCase();
+                    var kat = String(item.kategori || item.Kategori || "").toLowerCase();
                     return kat.includes(filterVal);
                 }));
             }
