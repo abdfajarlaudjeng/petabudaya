@@ -1,0 +1,586 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eksplorasi Budaya Banawa - Peta Interaktif & DAPOBUD</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .leaflet-div-icon { background: transparent; border: none; }
+        details summary::-webkit-details-marker { display:none; }
+    </style>
+</head>
+<body class="bg-gray-900 font-sans text-gray-800">
+
+    <!-- Peta -->
+    <div id="map" class="absolute inset-0 z-0"></div>
+
+    <!-- Header Filter -->
+    <div class="absolute top-4 left-4 right-4 md:right-auto md:w-[350px] z-[400] bg-white/80 backdrop-blur-md shadow-2xl rounded-2xl p-5 border border-white/40 transition-all">
+        <h1 class="text-2xl font-black text-gray-900 tracking-tight leading-tight mb-1">Sebaran Peta Budaya</h1>
+        <p class="text-sm text-gray-600 mb-4 font-medium">Sistem Informasi Geografis Kebudayaan</p>
+
+        <div class="relative">
+            <select id="kategoriFilter" class="w-full appearance-none bg-gray-100/80 border border-gray-200 text-gray-700 py-2.5 px-4 rounded-xl leading-tight focus:outline-none focus:bg-white focus:border-indigo-500 font-medium shadow-inner transition-colors">
+                 <option value="Semua">🌐 Semua Kategori Jelajah</option>
+                 <option value="Situs">🗿 Situs</option>
+                 <option value="Struktur">🧱 Struktur</option>
+                 <option value="Bangunan">🏛️ Bangunan</option>
+                 <option value="Benda">🏺 Benda</option>
+                 <option value="Kesenian">🎭 Kesenian</option>
+                 <option value="Tradisi Lisan">🗣️ Tradisi Lisan</option>
+            </select>
+            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
+                <svg class="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tombol Kontrol Peta Melayang (Lokasi Saya & Lihat Semua Titik) -->
+    <div class="absolute bottom-24 right-4 md:bottom-8 md:right-8 z-[400] flex flex-col gap-3">
+        <!-- Tombol Tampilkan Semua Titik -->
+        <button onclick="tampilkanSemuaTitik()" class="bg-white hover:bg-gray-100 text-gray-800 p-3.5 rounded-full shadow-xl border border-gray-200 transition-transform transform hover:scale-105 flex items-center justify-center group" title="Lihat Semua Titik Koordinat">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-600 group-hover:text-indigo-800" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+            </svg>
+        </button>
+
+        <!-- Tombol Lokasi Saya -->
+        <button onclick="temukanLokasiSaya()" class="bg-white hover:bg-gray-100 text-gray-800 p-3.5 rounded-full shadow-xl border border-gray-200 transition-transform transform hover:scale-105 flex items-center justify-center group" title="Temukan Lokasi Saya">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-600 group-hover:text-blue-800" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <circle cx="12" cy="12" r="3" fill="currentColor"/>
+            </svg>
+        </button>
+    </div>
+
+    <!-- Panel Informasi (Meluncur & Terintegrasi DAPOBUD Style) -->
+    <div id="infoPanel" class="absolute bottom-0 left-0 right-0 md:top-4 md:bottom-4 md:left-[390px] md:right-auto md:w-[460px] z-[500] bg-white md:rounded-2xl rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.2)] md:shadow-2xl flex flex-col transform translate-y-full md:translate-y-0 md:-translate-x-[200%] opacity-0 transition-all duration-500 ease-out border border-gray-100">
+        <button onclick="tutupPanel()" class="absolute top-4 right-4 z-10 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 transition-colors">
+            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+        </button>
+        <div id="panelKonten" class="flex-1 overflow-y-auto hide-scrollbar pb-6 rounded-b-2xl"></div>
+    </div>
+
+    <!-- Modal Gambar Besar -->
+    <div id="modalGambar" class="fixed inset-0 z-[9999] bg-black/95 backdrop-blur-sm hidden flex-col items-center justify-center transition-opacity">
+        <button onclick="tutupGambar()" class="absolute top-6 right-6 text-white/70 hover:text-white bg-white/10 hover:bg-white/20 rounded-full p-3 transition z-50">
+            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+        </button>
+        <img id="gambarBesar" src="" class="max-w-[95%] max-h-[90vh] object-contain rounded-lg shadow-2xl">
+    </div>
+
+    <!-- Modal 360 -->
+    <div id="modal360" class="fixed inset-0 z-[9999] bg-black/95 backdrop-blur-sm hidden flex-col items-center justify-center">
+        <button onclick="tutup360()" class="absolute top-6 right-6 text-white/70 hover:text-white bg-white/10 hover:bg-white/20 rounded-full p-3 transition z-50">
+            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+        </button>
+        <div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-black/50 text-white text-sm px-4 py-2 rounded-full backdrop-blur-sm pointer-events-none z-10">Geser layar untuk menghentikan putaran otomatis</div>
+        <div id="panorama-container" class="w-full h-full max-w-[1400px] max-h-[90vh] rounded-xl overflow-hidden shadow-2xl mx-auto cursor-grab active:cursor-grabbing"></div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <script src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script>
+
+    <script>
+        var map = L.map('map', { center: [-0.7321, 119.7432], zoom: 11, zoomControl: false });
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+        var googleHybrid = L.tileLayer('http://{s}.google.com/vt?lyrs=s,h&x={x}&y={y}&z={z}', { maxZoom: 20, subdomains: ['mt0', 'mt1', 'mt2', 'mt3'] }).addTo(map);
+        var googleStreets = L.tileLayer('http://{s}.google.com/vt?lyrs=m&x={x}&y={y}&z={z}', { maxZoom: 20, subdomains: ['mt0', 'mt1', 'mt2', 'mt3'] });
+        
+        var baseMaps = { "Citra Satelit": googleHybrid, "Peta Jalan": googleStreets };
+        L.control.layers(baseMaps, null, {position: 'bottomleft'}).addTo(map);
+
+        var markerLayer = L.featureGroup().addTo(map);
+        var semuaDataBudaya = [];
+        var viewer360 = null;
+        var panelElement = document.getElementById('infoPanel');
+        var kontenElement = document.getElementById('panelKonten');
+        var markerPengguna = null;
+        var posisiPengguna = null;
+
+        function formatUrlGambar(url) {
+            if (!url) return '';
+            url = url.trim();
+            var matchDrive = url.match(/(?:drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=)|lh3\.googleusercontent\.com\/d\/)([a-zA-Z0-9_-]+)/);
+            if (matchDrive && matchDrive[1]) {
+                return 'https://lh3.googleusercontent.com/d/' + matchDrive[1];
+            }
+            return url;
+        }
+
+        function formatJarak(meter) {
+            if (meter < 1000) return Math.round(meter) + " meter";
+            return (meter / 1000).toFixed(2) + " km";
+        }
+
+        function getIconKustom(kategori) {
+            let emoji = "📍"; let warnaBg = "bg-blue-600";
+            if (kategori === "Situs Sejarah" || kategori === "Situs") { emoji = "🗿"; warnaBg = "bg-amber-600"; } 
+            else if (kategori === "Struktur") { emoji = "🧱"; warnaBg = "bg-orange-600"; }
+            else if (kategori === "Bangunan") { emoji = "🏛️"; warnaBg = "bg-purple-600"; }
+            else if (kategori === "Benda") { emoji = "🏺"; warnaBg = "bg-emerald-600"; }
+            else if (kategori === "Kesenian") { emoji = "🎭"; warnaBg = "bg-pink-600"; } 
+            else if (kategori === "Tradisi Lisan") { emoji = "🗣️"; warnaBg = "bg-teal-600"; }
+
+            return L.divIcon({
+                className: 'leaflet-div-icon',
+                html: `<div class="${warnaBg} text-white w-9 h-9 rounded-full flex items-center justify-center shadow-lg border-2 border-white text-base transform transition-transform hover:scale-110">${emoji}</div>`,
+                iconSize: [36, 36],
+                iconAnchor: [18, 18]
+            });
+        }
+
+        function temukanLokasiSaya() {
+            if (!navigator.geolocation) return alert("Browser tidak mendukung lokasi.");
+            map.locate({setView: true, maxZoom: 14});
+        }
+
+        function tampilkanSemuaTitik() {
+            if (markerLayer.getLayers().length > 0) {
+                map.fitBounds(markerLayer.getBounds(), { padding: [50, 50], maxZoom: 15 });
+            }
+        }
+
+        map.on('locationfound', function(e) {
+            posisiPengguna = e.latlng;
+            if (markerPengguna) map.removeLayer(markerPengguna);
+            markerPengguna = L.circleMarker(e.latlng, { radius: 8, fillColor: "#3b82f6", color: "#ffffff", weight: 3, opacity: 1, fillOpacity: 1 }).addTo(map);
+            L.circle(e.latlng, {radius: e.accuracy / 2, color: "#3b82f6", fillOpacity: 0.1, weight: 1}).addTo(map);
+        });
+
+        map.on('locationerror', function(e) { alert("Gagal mendeteksi lokasi."); });
+
+        function getYouTubeEmbedUrl(url) {
+            var regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+            var match = url.match(regExp);
+            if (match && match[2].length === 11) return 'https://www.youtube.com/embed/' + match[2] + '?autoplay=0&rel=0';
+            return url;
+        }
+
+        function renderMarkers(data) {
+            markerLayer.clearLayers();
+            data.forEach(item => {
+                var latVal = item.lat || item.Lat || item.latitude || item.Latitude;
+                var lngVal = item.lng || item.Lng || item.longitude || item.Longitude;
+                if (latVal && lngVal) {
+                    var lat = parseFloat(latVal); var lng = parseFloat(lngVal);
+                    var marker = L.marker([lat, lng], { icon: getIconKustom(item.kategori || item.Kategori) });
+                    marker.on('click', function() { map.setView([lat, lng], 15, { animate: true, duration: 0.5 }); bukaPanelInfo(item); });
+                    markerLayer.addLayer(marker);
+                }
+            });
+
+            tampilkanSemuaTitik();
+        }
+
+        // Helper untuk membuat Komponen Akordion ala DAPOBUD
+        function buatAccordionBox(judul, htmlKonten, isOpen = true) {
+            return `
+                <details class="bg-white border border-gray-200 rounded-xl mb-3 shadow-sm overflow-hidden" ${isOpen ? 'open' : ''}>
+                    <summary class="font-bold text-sm text-gray-800 bg-gray-50 px-4 py-3 cursor-pointer select-none flex justify-between items-center hover:bg-gray-100 transition border-b border-gray-100">
+                        <span>${judul}</span>
+                        <i class="bi bi-chevron-down transition-transform duration-200 text-gray-400"></i>
+                    </summary>
+                    <div class="p-4 text-xs md:text-sm text-gray-600 leading-relaxed">
+                        ${htmlKonten}
+                    </div>
+                </details>
+            `;
+        }
+
+        // Helper tabel Key-Value untuk DAPOBUD
+        function buatTabelData(objData) {
+            let html = '<div class="space-y-2">';
+            for (let [key, val] of Object.entries(objData)) {
+                if (val !== undefined && val !== null && val !== '') {
+                    html += `
+                        <div class="flex justify-between border-b border-gray-100 pb-1.5 gap-2">
+                            <span class="text-gray-500 font-medium">${key}</span>
+                            <span class="text-gray-800 font-semibold text-right">${val}</span>
+                        </div>`;
+                }
+            }
+            html += '</div>';
+            return html;
+        }
+
+        function bukaPanelInfo(item) {
+            var latCurrent = parseFloat(item.lat || item.Lat || item.latitude || item.Latitude);
+            var lngCurrent = parseFloat(item.lng || item.Lng || item.longitude || item.Longitude);
+            var titikCurrent = L.latLng(latCurrent, lngCurrent);
+
+            // --- HITUNG JARAK DARI LOKASI PENGGUNA ---
+            var JarakPenggunaHTML = "";
+            if (posisiPengguna) {
+                var jarakM = titikCurrent.distanceTo(posisiPengguna);
+                JarakPenggunaHTML = `
+                    <div class="mt-3 mb-4 p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-3">
+                        <span class="text-xl">🚶‍♂️</span>
+                        <div>
+                            <div class="text-[11px] text-blue-600 font-bold uppercase tracking-wide">Jarak dari Lokasi Anda</div>
+                            <div class="text-sm font-black text-gray-800">${formatJarak(jarakM)}</div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // --- HITUNG JARAK KE TITIK TERDEKAT LAINNYA ---
+            var daftarJarak = [];
+            semuaDataBudaya.forEach(other => {
+                var oLat = parseFloat(other.lat || other.Lat || other.latitude || other.Latitude);
+                var oLng = parseFloat(other.lng || other.Lng || other.longitude || other.Longitude);
+                var oNama = other.nama || other.Nama || other.nama_objek || "Titik Lain";
+                var cNama = item.nama || item.Nama || item.nama_objek || "";
+
+                if (oLat && oLng && (oLat !== latCurrent || oLng !== lngCurrent) && oNama !== cNama) {
+                    var dist = titikCurrent.distanceTo(L.latLng(oLat, oLng));
+                    daftarJarak.push({
+                        nama: oNama,
+                        kategori: other.kategori || other.Kategori || "Umum",
+                        jarak: dist,
+                        lat: oLat,
+                        lng: oLng,
+                        data: other
+                    });
+                }
+            });
+
+            daftarJarak.sort((a, b) => a.jarak - b.jarak);
+
+            var JarakTitikLainHTML = "";
+            if (daftarJarak.length > 0) {
+                JarakTitikLainHTML = `
+                    <div class="mb-4">
+                        <h4 class="text-xs font-bold text-gray-800 mb-2 flex items-center gap-1.5"><i class="bi bi-geo-alt"></i> Jarak ke Objek Terdekat</h4>
+                        <div class="space-y-1.5">`;
+                
+                daftarJarak.slice(0, 3).forEach(target => {
+                    JarakTitikLainHTML += `
+                        <div class="flex items-center justify-between p-2.5 bg-gray-50 hover:bg-gray-100 rounded-xl border border-gray-100 transition cursor-pointer" onclick="map.setView([${target.lat}, ${target.lng}], 15); bukaPanelInfo(semuaDataBudaya.find(d => (d.nama || d.Nama) === '${target.nama}'))">
+                            <div class="truncate pr-2">
+                                <div class="font-bold text-xs text-gray-800 truncate">${target.nama}</div>
+                                <div class="text-[10px] text-gray-500">${target.kategori}</div>
+                            </div>
+                            <span class="font-bold text-[11px] text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-100 flex-shrink-0">${formatJarak(target.jarak)}</span>
+                        </div>`;
+                });
+                JarakTitikLainHTML += `</div></div>`;
+            }
+
+            // --- GALERI FOTO / CAROUSEL ---
+            var HeaderGambarHTML = `<div class="w-full h-24 bg-gradient-to-r from-amber-500 to-indigo-600"></div>`;
+            var SisaGaleriHTML = "";
+            var rawGambar = item.gambar || item.Gambar || item.foto || item.Foto || item.link_gambar || "";
+            
+            if (rawGambar && rawGambar.trim() !== "") {
+                var arrayGambar = rawGambar.split(',')
+                                    .map(url => formatUrlGambar(url))
+                                    .filter(url => url !== "");
+
+                if (arrayGambar.length > 0) {
+                    HeaderGambarHTML = `
+                        <div class="relative w-full h-56 md:h-64 cursor-pointer group" onclick="perbesarGambar('${arrayGambar[0]}')">
+                            <img src="${arrayGambar[0]}" class="w-full h-full object-cover">
+                            <div class="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition"></div>
+                            <div class="absolute bottom-3 right-3 bg-black/60 text-white text-xs px-2 py-1 rounded backdrop-blur-sm"><i class="bi bi-search"></i> Perbesar</div>
+                        </div>`;
+                    
+                    if (arrayGambar.length > 1) {
+                        SisaGaleriHTML = `<h4 class="text-xs font-bold text-gray-800 mt-4 mb-2"><i class="bi bi-images"></i> Galeri Foto Entitas</h4><div class="flex overflow-x-auto hide-scrollbar gap-2 snap-x mb-4">`;
+                        for (var i = 1; i < arrayGambar.length; i++) {
+                            SisaGaleriHTML += `<img src="${arrayGambar[i]}" onclick="perbesarGambar('${arrayGambar[i]}')" class="w-24 h-24 object-cover rounded-xl shadow-sm cursor-pointer snap-center flex-shrink-0 hover:opacity-80 transition border border-gray-200">`;
+                        }
+                        SisaGaleriHTML += `</div>`;
+                    }
+                }
+            }
+
+            // --- PERBANDINGAN TRANSFORMASI WAKTU ---
+            var PerbandinganHTML = "";
+            var gLama = formatUrlGambar(item.gambarLama || item.GambarLama || item.gambar_lama);
+            var gBaru = formatUrlGambar(item.gambarBaru || item.GambarBaru || item.gambar_baru);
+
+            if (gLama && gBaru) {
+                PerbandinganHTML = `
+                    <div class="mb-4">
+                        <h4 class="text-xs font-bold text-gray-800 mb-2 flex items-center gap-1.5"><i class="bi bi-clock-history"></i> Transformasi Waktu</h4>
+                        <div class="relative w-full h-56 rounded-xl overflow-hidden shadow-md border border-gray-200 select-none">
+                            <img src="${gBaru}" class="absolute inset-0 w-full h-full object-cover pointer-events-none">
+                            <img src="${gLama}" class="absolute inset-0 w-full h-full object-cover pointer-events-none" style="clip-path: inset(0 50% 0 0);">
+                            <div class="absolute top-0 bottom-0 left-1/2 w-1 bg-white shadow-[0_0_8px_rgba(0,0,0,0.8)] pointer-events-none transform -translate-x-1/2 z-10">
+                                <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-7 h-7 bg-white rounded-full shadow-md flex items-center justify-center">
+                                    <div class="w-0.5 h-3 bg-gray-400 rounded-full mx-0.5"></div><div class="w-0.5 h-3 bg-gray-400 rounded-full mx-0.5"></div>
+                                </div>
+                            </div>
+                            <input type="range" min="0" max="100" value="50" class="absolute inset-0 w-full h-full opacity-0 cursor-ew-resize z-20 m-0" oninput="
+                                this.previousElementSibling.previousElementSibling.style.clipPath = 'inset(0 ' + (100 - this.value) + '% 0 0)';
+                                this.previousElementSibling.style.left = this.value + '%';
+                            ">
+                            <div class="absolute top-3 left-3 bg-black/60 text-white text-[10px] uppercase font-bold px-2 py-0.5 rounded backdrop-blur-sm pointer-events-none z-10">Sebelum</div>
+                            <div class="absolute top-3 right-3 bg-black/60 text-white text-[10px] uppercase font-bold px-2 py-1 rounded backdrop-blur-sm pointer-events-none z-10">Sesudah</div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // --- VIRTUAL 360 BUTTON ---
+            var tombol360 = "";
+            var g360 = formatUrlGambar(item.gambar360 || item.Gambar360 || item.gambar_360);
+            if (g360) {
+                tombol360 = `
+                    <div class="mb-4">
+                        <button onclick="buka360('${g360}')" class="w-full bg-gray-900 hover:bg-black text-white font-semibold py-3 px-4 rounded-xl shadow-lg flex justify-center items-center gap-2 transform active:scale-[0.98]">
+                            <i class="bi bi-badge-3d"></i> Jelajahi Virtual 360&deg;
+                        </button>
+                    </div>`;
+            }
+
+            // --- AKORDION-AKORDION INFORMASI DAPOBUD ---
+            var idObjek = item.id || item.ID || item.nomor || item.Nomor || item.number || "-";
+            var namaObjek = item.nama || item.Nama || item.nama_objek || item.name || "Tanpa Nama";
+            var kategoriObjek = item.kategori || item.Kategori || item.category || "Umum";
+            var deskripsiObjek = item.deskripsi || item.Deskripsi || item.historyDescription || "Tidak ada deskripsi tersedia.";
+
+            // Accordion: Deskripsi & Sejarah
+            var accDeskripsi = buatAccordionBox("Deskripsi & Sejarah", `<p class="leading-relaxed">${deskripsiObjek}</p>`, true);
+
+            // Accordion: Informasi & Lokasi Penemuan
+            var dataInformasiLokasi = {
+                "Nomor Registrasi / DAPOBUD": idObjek,
+                "Kategori Entitas": kategoriObjek,
+                "Provinsi": item.provinsi || item.Provinsi || "Sulawesi Tengah",
+                "Kabupaten/Kota": item.kabupaten || item.Kabupaten || "Donggala",
+                "Kecamatan": item.kecamatan || item.Kecamatan || "Banawa",
+                "Koordinat Latitude": latCurrent,
+                "Koordinat Longitude": lngCurrent
+            };
+            var accInformasi = buatAccordionBox("Informasi & Lokasi Penemuan", buatTabelData(dataInformasiLokasi), false);
+
+            // Accordion: Data Fisik & Dimensi
+            var dataFisikDimensi = {
+                "Bahan Utama": item.bahan || item.Bahan || "-",
+                "Bentuk Objek": item.bentuk || item.Bentuk || "-",
+                "Ukuran / Dimensi": item.dimensi || item.Dimensi || item.ukuran || "-",
+                "Panjang / Tinggi": item.panjang || item.tinggi || "-",
+                "Lebar / Luas": item.lebar || item.luas || "-"
+            };
+            var accFisik = buatAccordionBox("Data Fisik & Dimensi", buatTabelData(dataFisikDimensi), false);
+
+            // Accordion: Kondisi Terkini & Kepemilikan
+            var dataKondisiKepemilikan = {
+                "Kondisi Saat Ini": item.kondisi || item.Kondisi || "Terawat",
+                "Status Kepemilikan": item.kepemilikan || item.Kepemilikan || "-",
+                "Pengelola": item.pengelola || item.Pengelola || "Dinas Kebudayaan / Pemerintah Daerah",
+                "Upaya Pelestarian": item.pelestarian || "-"
+            };
+            var accKondisi = buatAccordionBox("Kondisi Terkini & Pengelolaan", buatTabelData(dataKondisiKepemilikan), false);
+
+            // Accordion: Batas Zonasi & Penetapan
+            var dataZonasi = {
+                "Status Penetapan": item.status_penetapan || "Terdaftar",
+                "Tahun Penetapan": item.tahun_penetapan || item.tahun || "-",
+                "SK Penetapan": item.sk_penetapan || "-",
+                "Batas Zonasi": item.zonasi || item.Zonasi || "-"
+            };
+            var accZonasi = buatAccordionBox("Batas Zonasi & Penetapan", buatTabelData(dataZonasi), false);
+
+            // Accordion: Tabel Video Dokumentasi
+            var rawVideo = item.video || item.Video || item.link_video || "";
+            var tableVideoHTML = `<p class="text-gray-400 italic">Tidak ada dokumentasi video terlampir.</p>`;
+            if (rawVideo && rawVideo.trim() !== "") {
+                var embedUrl = getYouTubeEmbedUrl(rawVideo.trim());
+                tableVideoHTML = `
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs border-collapse border border-gray-200">
+                            <thead>
+                                <tr class="bg-gray-100 border-b border-gray-200">
+                                    <th class="p-2 border-r border-gray-200">#</th>
+                                    <th class="p-2 border-r border-gray-200">Keterangan</th>
+                                    <th class="p-2">Tautan Video</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="border-b border-gray-200">
+                                    <td class="p-2 border-r border-gray-200 font-bold">1</td>
+                                    <td class="p-2 border-r border-gray-200">Dokumentasi Utama</td>
+                                    <td class="p-2">
+                                        <a href="${rawVideo}" target="_blank" class="text-indigo-600 font-bold hover:underline flex items-center gap-1">
+                                            <i class="bi bi-play-circle-fill text-red-600"></i> Putar Video
+                                        </a>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="mt-3 rounded-xl overflow-hidden shadow-sm">
+                        <iframe class="w-full h-40 md:h-48" src="${embedUrl}" frameborder="0" allowfullscreen></iframe>
+                    </div>
+                `;
+            }
+            var accVideo = buatAccordionBox("Video Dokumentasi", tableVideoHTML, false);
+
+            // --- SEKSI DATA RELASI (DAPOBUD STYLE) ---
+            var dataRelasiHTML = `
+                <div class="mt-6 pt-4 border-t border-gray-200">
+                    <h3 class="text-sm font-black text-gray-900 mb-3 flex items-center gap-2">
+                        <i class="bi bi-diagram-3-fill text-amber-500"></i> Data Relasi Kebudayaan
+                    </h3>
+                    <div class="mb-3">
+                        <input type="text" id="inputCariRelasi" onkeyup="filterTabelRelasi()" placeholder="Cari nama objek relasi..." class="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div class="overflow-x-auto max-h-48 overflow-y-auto border border-gray-200 rounded-xl">
+                        <table id="tableRelasi" class="w-full text-left text-xs border-collapse">
+                            <thead class="bg-gray-100 text-gray-700 sticky top-0">
+                                <tr class="border-b border-gray-200">
+                                    <th class="p-2 border-r border-gray-200">#</th>
+                                    <th class="p-2 border-r border-gray-200">Nama Objek</th>
+                                    <th class="p-2">Kategori</th>
+                                </tr>
+                            </thead>
+                            <tbody>`;
+            
+            var relasiCount = 0;
+            semuaDataBudaya.forEach((rel, idx) => {
+                var rNama = rel.nama || rel.Nama || rel.name || "Objek";
+                var rKat = rel.kategori || rel.Kategori || rel.category || "Umum";
+                if (rNama !== namaObjek) {
+                    relasiCount++;
+                    dataRelasiHTML += `
+                        <tr class="border-b border-gray-100 hover:bg-indigo-50/50 cursor-pointer transition" onclick="map.setView([${parseFloat(rel.lat)}, ${parseFloat(rel.lng)}], 15); bukaPanelInfo(semuaDataBudaya[${idx}])">
+                            <td class="p-2 border-r border-gray-100 font-mono text-[10px] text-gray-400">${relasiCount}</td>
+                            <td class="p-2 border-r border-gray-100 font-bold text-gray-800">${rNama}</td>
+                            <td class="p-2 text-gray-600">${rKat}</td>
+                        </tr>
+                    `;
+                }
+            });
+
+            dataRelasiHTML += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+
+            kontenElement.innerHTML = `
+                ${HeaderGambarHTML}
+                <div class="px-5 pt-4 pb-2">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="inline-block bg-indigo-50 text-indigo-700 text-[11px] px-2.5 py-0.5 rounded-md font-bold uppercase tracking-wider border border-indigo-100">${kategoriObjek}</span>
+                        <span class="text-xs font-mono font-bold text-amber-500">ID: ${idObjek}</span>
+                    </div>
+                    <h2 class="text-xl font-black text-gray-900 leading-tight mb-2">${namaObjek}</h2>
+                    
+                    ${JarakPenggunaHTML}
+                    ${tombol360}
+                    ${PerbandinganHTML}
+                    ${SisaGaleriHTML}
+                    ${JarakTitikLainHTML}
+
+                    <!-- Komponen Akordion DAPOBUD -->
+                    <div class="mt-4">
+                        ${accDeskripsi}
+                        ${accInformasi}
+                        ${accFisik}
+                        ${accKondisi}
+                        ${accZonasi}
+                        ${accVideo}
+                    </div>
+
+                    ${dataRelasiHTML}
+                </div>
+            `;
+
+            panelElement.classList.remove('translate-y-full', 'md:-translate-x-[200%]', 'opacity-0');
+            panelElement.classList.add('translate-y-0', 'md:translate-x-0', 'opacity-100');
+        }
+
+        // Filter tabel relasi secara interaktif
+        function filterTabelRelasi() {
+            var input = document.getElementById("inputCariRelasi");
+            var filter = input.value.toLowerCase();
+            var table = document.getElementById("tableRelasi");
+            var tr = table.getElementsByTagName("tr");
+
+            for (var i = 1; i < tr.length; i++) {
+                var tdNama = tr[i].getElementsByTagName("td")[1];
+                var tdKat = tr[i].getElementsByTagName("td")[2];
+                if (tdNama || tdKat) {
+                    var txtNama = tdNama.textContent || tdNama.innerText;
+                    var txtKat = tdKat.textContent || tdKat.innerText;
+                    if (txtNama.toLowerCase().indexOf(filter) > -1 || txtKat.toLowerCase().indexOf(filter) > -1) {
+                        tr[i].style.display = "";
+                    } else {
+                        tr[i].style.display = "none";
+                    }
+                }
+            }
+        }
+
+        function tutupPanel() {
+            panelElement.classList.remove('translate-y-0', 'md:translate-x-0', 'opacity-100');
+            panelElement.classList.add('translate-y-full', 'md:-translate-x-[200%]', 'opacity-0');
+            tampilkanSemuaTitik();
+        }
+
+        var gasUrl = 'https://script.google.com/macros/s/AKfycbyazrLKFLX-P_wrT1AJmG6CFV0ioOIWeH17Zan1nTRyKeIh7DdtoTLuRoHS8zTwR7Rv/exec';
+
+        fetch(gasUrl)
+            .then(response => response.json())
+            .then(data => { semuaDataBudaya = data; renderMarkers(semuaDataBudaya); })
+            .catch(error => console.error('Error API:', error));
+
+        document.getElementById('kategoriFilter').addEventListener('change', function(event) {
+            tutupPanel(); 
+            var filterVal = event.target.value.toLowerCase();
+            if (filterVal === "semua") {
+                renderMarkers(semuaDataBudaya); 
+            } else {
+                renderMarkers(semuaDataBudaya.filter(item => {
+                    var kat = (item.kategori || item.Kategori || "").toLowerCase();
+                    return kat.includes(filterVal);
+                }));
+            }
+        });
+
+        function perbesarGambar(url) {
+            document.getElementById('gambarBesar').src = url;
+            document.getElementById('modalGambar').classList.remove('hidden', 'flex');
+            document.getElementById('modalGambar').classList.add('flex');
+        }
+
+        function tutupGambar() {
+            document.getElementById('modalGambar').classList.add('hidden');
+            document.getElementById('modalGambar').classList.remove('flex');
+            setTimeout(() => document.getElementById('gambarBesar').src = "", 300);
+        }
+
+        function buka360(urlGambar) {
+            document.getElementById('modal360').classList.remove('hidden');
+            document.getElementById('modal360').classList.add('flex');
+            if (viewer360 !== null) viewer360.destroy(); 
+            
+            viewer360 = pannellum.viewer('panorama-container', {
+                "type": "equirectangular", "panorama": urlGambar, "autoLoad": true, "compass": true, "mouseZoom": true, "autoRotate": -2
+            });
+        }
+
+        function tutup360() {
+            document.getElementById('modal360').classList.add('hidden');
+            document.getElementById('modal360').classList.remove('flex');
+            if (viewer360 !== null) { viewer360.destroy(); viewer360 = null; }
+        }
+    </script>
+</body>
+</html>
